@@ -1,8 +1,6 @@
-# NoStealer 使用说明
+# NoStealer
 
-## 描述:
-
-NoStealer 是一个Python应用程序，设计用于从Windows 7+系统静默地复制文件夹到USB驱动器
+NoStealer 是一个基于Python的应用程序，设计用于从Windows 7+系统静默地复制文件夹到USB驱动器
 
 ## 功能:
 
